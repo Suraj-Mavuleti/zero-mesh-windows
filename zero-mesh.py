@@ -1,25 +1,40 @@
 #!/usr/bin/env python3
-import sys, socket, threading, time, random
-def listen_sim():
+import sys, argparse, socket, threading
+def server_mode(port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('0.0.0.0', port))
+    s.listen(5)
+    print(f"\033[1;32m[Engine] Listening securely on 0.0.0.0:{port}\033[0m")
     while True:
-        time.sleep(random.uniform(2.0, 5.0))
-        print(f"\n\033[1;35m[Network]: Dropped incoming malformed packet from {random.randint(10,255)}.{random.randint(10,255)}.1.1\033[0m")
-        print("\033[1;32mCMD > \033[0m", end='', flush=True)
+        conn, addr = s.accept()
+        print(f"\033[1;33m[Engine] Peer connected from {addr}\033[0m")
+        data = conn.recv(1024)
+        if data:
+            print(f"\033[1;36m[Payload] {data.decode('utf-8', 'ignore')}\033[0m")
+            conn.sendall(b"ACK from V3 Engine\n")
+        conn.close()
+
+def client_mode(host, port, message):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print(f"\033[1;33m[Engine] Connecting to {host}:{port}...\033[0m")
+    s.connect((host, port))
+    s.sendall(message.encode('utf-8'))
+    print(f"\033[1;32m[Engine] Payload sent. Awaiting response...\033[0m")
+    print(f"\033[1;36m[Response] {s.recv(1024).decode('utf-8')}\033[0m")
+    s.close()
 
 def main():
-    print("\033[1;31m" + "="*60 + "\033[0m")
-    print(f"\033[1;31m          {sys.argv[0].split('/')[-1].upper()} CRYPTOGRAPHIC SOCKET ENGINE\033[0m")
-    print("\033[1;31m" + "="*60 + "\033[0m")
-    t = threading.Thread(target=listen_sim, daemon=True)
-    t.start()
-    print("\033[3mListening on secure local socket. Type 'status' or 'exit'.\033[0m\n")
-    while True:
-        try:
-            cmd = input("\033[1;32mCMD > \033[0m").strip()
-            if cmd == 'exit': break
-            if cmd == 'status':
-                print("\033[1;33m[Status]: Cryptographic boundaries secured. 0 active peer connections.\033[0m")
-            elif cmd:
-                print(f"\033[1;31m[Error]: Unrecognized sequence '{cmd}'.\033[0m")
-        except: break
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--listen', type=int, help='Start in server mode on port')
+    parser.add_argument('-c', '--connect', type=str, help='Connect to host:port')
+    parser.add_argument('-m', '--msg', type=str, default="PING", help='Message payload')
+    args = parser.parse_args()
+    
+    print("\033[1;34m=== V3 NETWORK & CRYPTO TCP ENGINE ===\033[0m")
+    if args.listen: server_mode(args.listen)
+    elif args.connect:
+        host, port = args.connect.split(':')
+        client_mode(host, int(port), args.msg)
+    else:
+        print("Usage: ./start.sh -l 8080 OR ./start.sh -c 127.0.0.1:8080 -m 'hello'")
 if __name__ == '__main__': main()
